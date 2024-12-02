@@ -9,12 +9,12 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-$sql = "UPDATE users SET profile_picture = 'uploads/default_profile_picture.jpg' WHERE user_id = ?";
-$stmt = $con->prepare($sql);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
+// Change MySQL query to PostgreSQL query
+$sql = "UPDATE users SET profile_picture = $1 WHERE user_id = $2";
+$stmt = pg_prepare($con, "update_profile_picture", $sql);
+$result = pg_execute($con, "update_profile_picture", array('uploads/default_profile_picture.jpg', $user_id));
 
-if ($stmt->affected_rows > 0) {
+if ($result) {
     header('Location: profile.php?message=profile_picture_deleted');
 } else {
     header('Location: profile.php?message=error_deleting_picture');
