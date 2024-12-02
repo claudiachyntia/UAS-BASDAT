@@ -19,7 +19,7 @@ $city_query = "
     LEFT JOIN tourismcategories tc ON t.category_id = tc.category_id
     WHERE tc.category_id = $1
     GROUP BY c.city_id, c.city_name
-";
+    ORDER BY c.city_name ASC";
 $city_result = pg_query_params($con, $city_query, array($category_id));
 
 ?>

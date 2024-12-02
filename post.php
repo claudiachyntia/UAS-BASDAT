@@ -1,42 +1,42 @@
 <div class="posts-container">
-        <?php if (mysqli_num_rows($result) > 0): ?>
-            <?php while($row = mysqli_fetch_assoc($result)): ?>
-                <div class="post-box" data-post-id="<?= $row['id']; ?>">
-                    <?php if (isset($_SESSION['user_id']) && $row['user_id'] == $_SESSION['user_id']): ?>
-                        <div class="post-options">
-                            <i class="fas fa-ellipsis-v options-icon"></i>
-                            <div class="options-dropdown">
-                                <a href="delete_post.php?post_id=<?= $row['id']; ?>&source_page=<?= $source_page; ?>" onclick="return confirm('Are you sure you want to delete this post?');">
-                                    <i class="fas fa-trash"></i>
-                                    <span>Delete Post</span>
-                                </a>
-                            </div>
+    <?php if (pg_num_rows($result) > 0): ?>
+        <?php while($row = pg_fetch_assoc($result)): ?>
+            <div class="post-box" data-post-id="<?= $row['id']; ?>">
+                <?php if (isset($_SESSION['user_id']) && $row['user_id'] == $_SESSION['user_id']): ?>
+                    <div class="post-options">
+                        <i class="fas fa-ellipsis-v options-icon"></i>
+                        <div class="options-dropdown">
+                            <a href="delete_post.php?post_id=<?= $row['id']; ?>&source_page=<?= $source_page; ?>" onclick="return confirm('Are you sure you want to delete this post?');">
+                                <i class="fas fa-trash"></i>
+                                <span>Delete Post</span>
+                            </a>
                         </div>
+                    </div>
+                <?php endif; ?>
+                <div class="post-header">
+                    <a href="profile.php?user_id=<?= $row['user_id']; ?>">
+                        <?php 
+                        $profilePic = !empty($row['profile_picture']) ? $row['profile_picture'] : 'uploads/default_profile_picture.jpg';
+                        ?>
+                        <img src="<?= $profilePic; ?>" alt="User Profile Picture" height="40" width="40">
+                    </a>
+                    <div>
+                        <div class="post-author-name"><?= $row['username']; ?></div>
+                        <div class="post-time"><?= date('d M Y H:i', strtotime($row['created_at'])); ?></div>
+                    </div>
+                </div>
+                <div class="post-content">
+                    <p><?= nl2br($row['content']); ?></p>
+                    <!-- Display image if it exists -->
+                    <?php if ($row['image']): ?>
+                        <img src="uploads/<?= $row['image']; ?>" alt="Post Image" style="max-width:100%; height:auto;">
                     <?php endif; ?>
-                    <div class="post-header">
-                        <a href="profile.php?user_id=<?= $row['user_id']; ?>">
-                            <?php 
-                            $profilePic = !empty($row['profile_picture']) ?$row['profile_picture'] : 'uploads/default_profile_picture.jpg';
-                            ?>
-                            <img src="<?= $profilePic; ?>" alt="User Profile Picture" height="40" width="40">
-                        </a>
-                        <div>
-                            <div class="post-author-name"><?= $row['username']; ?></div>
-                            <div class="post-time"><?= date('d M Y H:i', strtotime($row['created_at'])); ?></div>
-                        </div>
-                    </div>
-                    <div class="post-content">
-                        <p><?= nl2br($row['content']); ?></p>
-                        <!-- Display image if it exists -->
-                        <?php if ($row['image']): ?>
-                            <img src="uploads/<?= $row['image']; ?>" alt="Post Image" style="max-width:100%; height:auto;">
-                        <?php endif; ?>
-                    </div>
-                    <div class="post-actions">
-                        <div class="like-button <?= isset($user_id) ? ($row['is_liked'] ? 'liked' : '') : 'disabled'; ?>"><?= $row['like_count'].' '; ?><i class="fas fa-thumbs-up"></i></div>
-                        <div class="comment-button" class="like-count"><?= $row['comment_count']; ?> <i class="fas fa-comment"></i> </div>
-                        <div class="share-button" class="like-count"><i class="fas fa-share"></i></div>
-                    </div>
+                </div>
+                <div class="post-actions">
+                    <div class="like-button <?= isset($user_id) ? ($row['is_liked'] ? 'liked' : '') : 'disabled'; ?>"><?= $row['like_count'].' '; ?><i class="fas fa-thumbs-up"></i></div>
+                    <div class="comment-button" class="like-count"><?= $row['comment_count']; ?> <i class="fas fa-comment"></i> </div>
+                    <div class="share-button" class="like-count"><i class="fas fa-share"></i></div>
+                </div>
                     <div class="comment-section" style="display: <?= isset($_GET['open_comments']) && $_GET['open_comments'] === 'true' ? 'block' : 'none'; ?>;">
                         <div class="post-box">
                             <form action="php_tools/add_comment.php?source_page=<?= urlencode($source_page); ?>" method="POST">
@@ -54,6 +54,7 @@
                         </div>
                         <div class="comment-list" data-post-id="<?= $row['id']; ?>">
                             <?php
+                            // Menggunakan fungsi getComments yang sudah diubah untuk PostgreSQL
                             $comments = getComments($row['id'], $con);
                             if (count($comments) > 0):
                                 foreach ($comments as $comment): ?>
@@ -72,6 +73,8 @@
                                     </div>
                                 <?php endforeach; 
                             else: ?>
+                                <!-- Tidak ada komentar -->
+                                <p>No comments yet.</p>
                             <?php endif; ?>
                         </div>
                     </div>
