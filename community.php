@@ -3,7 +3,7 @@ session_start();
 include('config/conn.php');
 include('php_tools/event_rrs.php');
 
-$keyword = isset($_GET['keyword']) ? mysqli_real_escape_string($con, $_GET['keyword']) : '';
+$keyword = isset($_GET['keyword']) ? pg_escape_string($con, $_GET['keyword']) : ''; 
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : NULL;
 
 $profilePicture = 'uploads/default_profile_picture.jpg';
@@ -15,9 +15,7 @@ foreach ($rss_data->channel->item as $item) {
     $date = date_create((string)$item->pubDate);
     $month = date_format($date, 'F'); 
     $day = date_format($date, 'd'); 
-
     $event_name = (string)$item->title;
-
     if (!isset($events_by_month[$month])) {
         $events_by_month[$month] = [];
     }
@@ -27,22 +25,18 @@ foreach ($rss_data->channel->item as $item) {
     ];
 }
 
-
 if (isset($_SESSION['user_id']) && isset($con)) {
-    $sql = "SELECT profile_picture FROM users WHERE user_id = ?";
-    $stmt = $con->prepare($sql);
+    $sql = "SELECT profile_picture FROM users WHERE user_id = $1";
+    $stmt = pg_prepare($con, "get_profile_picture", $sql);
 
     if ($stmt) {
-        $stmt->bind_param("i", $_SESSION['user_id']);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        if ($result && $result->num_rows > 0) {
-            $user = $result->fetch_assoc();
+        $result = pg_execute($con, "get_profile_picture", [$_SESSION['user_id']]);
+        if ($result && pg_num_rows($result) > 0) {
+            $user = pg_fetch_assoc($result);
             $profilePicture = $user['profile_picture'] ?? $profilePicture;
         }
-        $stmt->close();
     } else {
-        error_log("Error preparing SQL statement: " . $con->error);
+        error_log("Error preparing SQL statement: " . pg_last_error($con));
     }
 }
 
@@ -50,27 +44,27 @@ if ($user_id !== NULL) {
     // Pengguna login
     if ($keyword != '') {
         $query = "SELECT p.id, p.user_id, p.content, p.image, p.created_at, u.username, u.profile_picture,
-                (CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END) AS is_liked,
+                CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END AS is_liked,
                 (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) AS like_count,
                 (SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) AS comment_count
                 FROM posts p
                 JOIN users u ON p.user_id = u.user_id
                 LEFT JOIN post_likes l ON l.post_id = p.id AND l.user_id = $user_id
                 LEFT JOIN post_comments pc ON pc.post_id = p.id
-                WHERE p.content LIKE '%$keyword%' OR u.username LIKE '%$keyword%'
-                GROUP BY p.id
+                WHERE p.content ILIKE '%$keyword%' OR u.username ILIKE '%$keyword%'
+                GROUP BY p.id, u.username, u.profile_picture, l.id
                 ORDER BY p.created_at DESC";
         echo "<h6>Result search for : '$keyword'</h6>";
     } else {
         $query = "SELECT p.id, p.user_id, p.content, p.image, p.created_at, u.username, u.profile_picture,
-                (CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END) AS is_liked,
+                CASE WHEN l.id IS NOT NULL THEN 1 ELSE 0 END AS is_liked,
                 (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) AS like_count,
                 (SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) AS comment_count
                 FROM posts p
                 JOIN users u ON p.user_id = u.user_id
                 LEFT JOIN post_likes l ON l.post_id = p.id AND l.user_id = $user_id
                 LEFT JOIN post_comments pc ON pc.post_id = p.id
-                GROUP BY p.id
+                GROUP BY p.id, u.username, u.profile_picture, l.id
                 ORDER BY p.created_at DESC";
     }
 } else {
@@ -83,10 +77,10 @@ if ($user_id !== NULL) {
                 JOIN users u ON p.user_id = u.user_id
                 LEFT JOIN post_likes pl ON pl.post_id = p.id
                 LEFT JOIN post_comments pc ON pc.post_id = p.id
-                WHERE p.content LIKE '%$keyword%' OR u.username LIKE '%$keyword%'
-                GROUP BY p.id
+                WHERE p.content ILIKE '%$keyword%' OR u.username ILIKE '%$keyword%'
+                GROUP BY p.id, u.username, u.profile_picture
                 ORDER BY p.created_at DESC";
-    echo "<h6>Result search for : '$keyword'</h6>";
+        echo "<h6>Result search for : '$keyword'</h6>";
     } else {
         $query = "SELECT p.id, p.user_id, p.content, p.image, p.created_at, u.username, u.profile_picture,
                 (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) AS like_count,
@@ -95,11 +89,11 @@ if ($user_id !== NULL) {
                 JOIN users u ON p.user_id = u.user_id
                 LEFT JOIN post_likes pl ON pl.post_id = p.id
                 LEFT JOIN post_comments pc ON pc.post_id = p.id
-                GROUP BY p.id
+                GROUP BY p.id, u.username, u.profile_picture
                 ORDER BY p.created_at DESC";
     }
 }
-$result = mysqli_query($con, $query);
+$result = pg_query($con, $query);
 
 function getComments($post_id, $con) {
     $query = "SELECT c.comment_text, c.created_at, u.username, u.profile_picture 
@@ -107,16 +101,14 @@ function getComments($post_id, $con) {
             JOIN users u ON c.user_id = u.user_id
             WHERE c.post_id = $post_id
             ORDER BY c.created_at DESC";
-$result = mysqli_query($con, $query);
+    $result = pg_query($con, $query);
     $comments = [];
-    while ($row = mysqli_fetch_assoc($result)) {
-        $row['profile_picture'] = !empty($row['profile_picture']) ?$row['profile_picture'] : 'uploads/default_profile_picture.jpg';
+    while ($row = pg_fetch_assoc($result)) {
+        $row['profile_picture'] = !empty($row['profile_picture']) ? $row['profile_picture'] : 'uploads/default_profile_picture.jpg';
         $comments[] = $row;
     }
     return $comments;
 }
-
-
 ?>
 
 <!DOCTYPE html>

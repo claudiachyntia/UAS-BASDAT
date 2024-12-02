@@ -6,6 +6,7 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit();
 }
+
 $user_id = $_SESSION['user_id'];
 $content = $_POST['content'];
 $image = NULL;
@@ -17,9 +18,13 @@ if (isset($_FILES['image']) && $_FILES['image']['error'] == 0) {
     move_uploaded_file($_FILES["image"]["tmp_name"], $target_file);
 }
 
-$query = "INSERT INTO posts (user_id, content, image) VALUES ('$user_id', '$content', '$image')";
-mysqli_query($con, $query);
+$query = "INSERT INTO posts (user_id, content, image) VALUES ($1, $2, $3)";
+$result = pg_query_params($con, $query, array($user_id, $content, $image));
 
-header("Location: community.php");
-exit();
+if ($result) {
+    header("Location: community.php");
+    exit();
+} else {
+    echo "Error: " . pg_last_error($con);
+}
 ?>
