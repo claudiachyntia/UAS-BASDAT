@@ -107,7 +107,7 @@ submitButton.addEventListener("click", () => {
 
         // AJAX request ke submit_rating.php
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "submit_rating.php", true);
+        xhr.open("POST", "../submit_rating.php", true);
         xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
