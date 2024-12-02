@@ -10,9 +10,9 @@ if (isset($_POST['cek_login'])) {
   if (empty($username) || empty($password_hash)) {
       $error[] = 'Please Enter username and password';
   } else {
-      $user = mysqli_query($con, "SELECT * FROM users WHERE username='$username'");
-      if (mysqli_num_rows($user) != 0) {
-          $data = mysqli_fetch_array($user);
+      $result = pg_query_params($con, "SELECT * FROM users WHERE username = $1", array($username));
+      if (pg_num_rows($result) != 0) {
+          $data = pg_fetch_array($result);
           if (password_verify($password_hash, $data['password_hash'])) {
               $_SESSION['user_id'] = $data['user_id'];
               $_SESSION['username'] = $data['username'];
@@ -24,9 +24,9 @@ if (isset($_POST['cek_login'])) {
       } else {
           $error[] = 'Username cannot found';
       }
-    
   }
 }
+
 // Cek signup
 if (isset($_POST['signup'])) {
   $username = $_POST['username'];
@@ -37,12 +37,12 @@ if (isset($_POST['signup'])) {
   if (empty($username) || empty($email) || empty($password)) {
       $error[] = 'Please fill all columns';
   } else {
-      $check_user = mysqli_query($con, "SELECT * FROM users WHERE username='$username' OR email='$email'");
-      if (mysqli_num_rows($check_user) > 0) {
+      $result = pg_query_params($con, "SELECT * FROM users WHERE username = $1 OR email = $2", array($username, $email));
+      if (pg_num_rows($result) > 0) {
           $error[] = 'Username or Email already exist';
       } else {
           $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-          $query = mysqli_query($con, "INSERT INTO users (username, email, password_hash, profile_picture) VALUES ('$username', '$email', '$hashed_password', '$default_profile_picture')");
+          $query = pg_query_params($con, "INSERT INTO users (username, email, password_hash, profile_picture) VALUES ($1, $2, $3, $4)", array($username, $email, $hashed_password, $default_profile_picture));
           if ($query) {
               header("Location: login.php");
               exit();
