@@ -5,7 +5,8 @@ include('php_tools/event_rrs.php');
 
 $isLoggedIn = isset($_SESSION['user_id']);
 
-$query = "SELECT tp.tourism_name, tp.image_url, tp.tourism_id, COALESCE(avg_ratings.average_rating, 0) AS average_rating
+$query = "
+SELECT tp.tourism_name, tp.image_url, tp.tourism_id, COALESCE(avg_ratings.average_rating, 0) AS average_rating
 FROM tourismplaces tp
 LEFT JOIN (
     SELECT tourism_id, AVG(rating_value) AS average_rating
@@ -14,7 +15,7 @@ LEFT JOIN (
 ) AS avg_ratings ON tp.tourism_id = avg_ratings.tourism_id
 ORDER BY average_rating DESC, tp.tourism_id ASC
 LIMIT 5";
-$result = $con->query($query);
+$result = pg_query($con, $query);
 
 // for event calendar
 $rss_data->registerXPathNamespace('content', 'http://purl.org/rss/1.0/modules/content/');
@@ -141,9 +142,9 @@ foreach ($rss_data->channel->item as $item) {
     <div class="slider">
         <div class="list">
             <?php
-            if ($result->num_rows > 0) {
+            if (pg_num_rows($result) > 0) {
                 $active = ' active';
-                while ($row = $result->fetch_assoc()) {
+                while ($row = pg_fetch_assoc($result)) {
                     $tourism_name = $row['tourism_name'];
                     $image_url = $row['image_url'];
                     ?>
@@ -156,7 +157,7 @@ foreach ($rss_data->channel->item as $item) {
                         </div>
                     </div>
                     <?php
-                    $active =''; 
+                    $active = ''; 
                 }
             } else {
                 echo "<p>No data available</p>";
@@ -173,9 +174,9 @@ foreach ($rss_data->channel->item as $item) {
         <!-- thumbnail -->
         <div class="thumbnail">
             <?php
-            $result->data_seek(0);
+            pg_result_seek($result, 0);
             $active = ' active';
-            while ($row = $result->fetch_assoc()) {
+            while ($row = pg_fetch_assoc($result)) {
                 $tourism_name = $row['tourism_name'];
                 $image_url = $row['image_url'];
                 ?>
@@ -186,7 +187,7 @@ foreach ($rss_data->channel->item as $item) {
                     </div>
                 </div>
                 <?php
-                $active ='';
+                $active = '';
             }
             ?>
         </div>
@@ -211,66 +212,65 @@ foreach ($rss_data->channel->item as $item) {
     <!-- About Section End -->
 
   <!-- <--card slider nature start --> 
-<?php
-$categoryQuery = "SELECT category_id, category_name, little_desc FROM tourismcategories";
-$category_result = $con->query($categoryQuery);
+    <?php
+        $categoryQuery = "SELECT category_id, category_name, little_desc FROM tourismcategories";
+        $category_result = pg_query($con, $categoryQuery);
 
-if ($category_result->num_rows > 0) {
-    while ($category = $category_result->fetch_assoc()) {
-        $categoryId = $category['category_id'];
-        $categoryName = $category['category_name'];
-        $description = $category['little_desc'];
-
-        echo '
-        <div id="' . strtolower(str_replace(' ', '-', $categoryName)) . '" class="carousel-header">
-            <h2>' . htmlspecialchars($categoryName) . '</h2>
-            <p>' . htmlspecialchars($description) . '</p>
-            <a href="category.php?category_id=' . $categoryId . '" class="read-more-btn">Read More</a> 
-        </div>
-        <div class="wikit-carousel">
-            <div class="wikit-carousel__wrapper">
-                <i id="left-' . strtolower(str_replace(' ', '-', $categoryName)) . '" class="fa fa-angle-left"></i> 
-                <div class="wikit-carousel__carousel">';
-
-        $cityQuery = "
-        SELECT c.city_id, c.city_name, MIN(t.image_url) AS image_url
-        FROM cities c
-        LEFT JOIN tourismplaces t ON c.city_id = t.city_id
-        LEFT JOIN tourismcategories tc ON t.category_id = tc.category_id
-        WHERE tc.category_id = $categoryId
-        GROUP BY c.city_id, c.city_name
-        ";
-        $city_result = $con->query($cityQuery);
-
-        if ($city_result->num_rows > 0) {
-            while ($row = $city_result->fetch_assoc()) {
-                $city_id = $row['city_id'];
-                $cityName = htmlspecialchars($row['city_name']);
-                $imageUrl = $row['image_url'] ? htmlspecialchars($row['image_url']) : 'image/background_nature.jpg';
+        if (pg_num_rows($category_result) > 0) {
+            while ($category = pg_fetch_assoc($category_result)) {
+                $categoryId = $category['category_id'];
+                $categoryName = $category['category_name'];
+                $description = $category['little_desc'];
 
                 echo '
-                <div class="card">
-                    <a href="citycategory.php?city_id=' . $city_id . '&category_id=' . $categoryId . '&image_url=' . $imageUrl . '" class="discover__card">
-                        <img src="' . $imageUrl . '" alt="img" draggable="false">
-                        <div class="city-name">' . $cityName . '</div>
-                    </a>
+                <div id="' . strtolower(str_replace(' ', '-', $categoryName)) . '" class="carousel-header">
+                    <h2>' . htmlspecialchars($categoryName) . '</h2>
+                    <p>' . htmlspecialchars($description) . '</p>
+                    <a href="category.php?category_id=' . $categoryId . '" class="read-more-btn">Read More</a> 
+                </div>
+                <div class="wikit-carousel">
+                    <div class="wikit-carousel__wrapper">
+                        <i id="left-' . strtolower(str_replace(' ', '-', $categoryName)) . '" class="fa fa-angle-left"></i> 
+                        <div class="wikit-carousel__carousel">';
+
+                $cityQuery = "
+                SELECT c.city_id, c.city_name, MIN(t.image_url) AS image_url
+                FROM cities c
+                LEFT JOIN tourismplaces t ON c.city_id = t.city_id
+                LEFT JOIN tourismcategories tc ON t.category_id = tc.category_id
+                WHERE tc.category_id = $categoryId
+                GROUP BY c.city_id, c.city_name
+                ";
+                $city_result = pg_query($con, $cityQuery);
+
+                if (pg_num_rows($city_result) > 0) {
+                    while ($row = pg_fetch_assoc($city_result)) {
+                        $city_id = $row['city_id'];
+                        $cityName = htmlspecialchars($row['city_name']);
+                        $imageUrl = $row['image_url'] ? htmlspecialchars($row['image_url']) : 'image/background_nature.jpg';
+
+                        echo '
+                        <div class="card">
+                            <a href="citycategory.php?city_id=' . $city_id . '&category_id=' . $categoryId . '&image_url=' . $imageUrl . '" class="discover__card">
+                                <img src="' . $imageUrl . '" alt="img" draggable="false">
+                                <div class="city-name">' . $cityName . '</div>
+                            </a>
+                        </div>';
+                    }
+                } else {
+                    echo '<div class="no-cities">No cities found for this category.</div>';
+                }
+
+                echo '
+                        </div>
+                        <i id="right-' . strtolower(str_replace(' ', '-', $categoryName)) . '" class="fa fa-angle-right"></i> 
+                    </div>
                 </div>';
             }
         } else {
-            echo '<div class="no-cities">No cities found for this category.</div>';
+            echo "<div class='no-categories'>No categories found.</div>";
         }
-
-        echo '
-                </div>
-                <i id="right-' . strtolower(str_replace(' ', '-', $categoryName)) . '" class="fa fa-angle-right"></i> 
-            </div>
-        </div>';
-    }
-} else {
-    echo "<div class='no-categories'>No categories found.</div>";
-}
-?>
-
+    ?>
 
 <!-- Event section start -->
 <div class="container-event" id="Event">
@@ -282,8 +282,7 @@ if ($category_result->num_rows > 0) {
         </div>
     </div>
 
-    <!-- Calendar Event Section Start -->
-   <!-- Calendar Event Section Start -->
+<!-- Calendar Event Section Start -->
 <div class="event-calendar">
     <h3>Calendar Event in 2024</h3>
     <div class="calendar-container">
@@ -355,7 +354,7 @@ if ($category_result->num_rows > 0) {
                     echo '<div class="event-list">';
                     echo '<h4><a href="' . htmlspecialchars($link) . '" target="_blank">' . htmlspecialchars($title) . '</a></h4>';
                     echo '<p>' . htmlspecialchars($pubDate) . '</p>';
-                    echo '<p>' . htmlspecialchars($description) . '</p>';
+                    echo '<p>' . htmlspecialchars(html_entity_decode($description)) . '</p>';
                     echo '</div></div>';
 
                     $count++;
