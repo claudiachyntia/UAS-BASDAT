@@ -15,25 +15,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = $_POST['password'];
 
     // Query untuk mendapatkan password yang terenkripsi dari database
-    $query = "SELECT password_hash FROM users WHERE user_id = ?";
-    $stmt = $con->prepare($query);
-    $stmt->bind_param("i", $user_id);
-    $stmt->execute();
-    $stmt->bind_result($password_hash);
-    $stmt->fetch();
-    $stmt->close();
+    $query = "SELECT password_hash FROM users WHERE user_id = $1";
+    $stmt = pg_prepare($con, "get_password_hash", $query);
+    $result = pg_execute($con, "get_password_hash", array($user_id));
 
-    // Verifikasi password
-    if (password_verify($password, $password_hash)) {
-        // Jika password cocok, hapus akun
-        $delete_query = "DELETE FROM users WHERE user_id = ?";
-        $delete_stmt = $con->prepare($delete_query);
-        $delete_stmt->bind_param("i", $user_id);
-        if ($delete_stmt->execute()) {
-            // Hapus session dan redirect ke halaman login
-            session_destroy();
-            header("Location: index.php");
-            exit();
+    if ($result) {
+        $row = pg_fetch_assoc($result);
+        $password_hash = $row['password_hash'];
+
+        // Verifikasi password
+        if (password_verify($password, $password_hash)) {
+            // Jika password cocok, hapus akun
+            $delete_query = "DELETE FROM users WHERE user_id = $1";
+            $delete_stmt = pg_prepare($con, "delete_user", $delete_query);
+            $delete_result = pg_execute($con, "delete_user", array($user_id));
+            
+            if ($delete_result) {
+                // Hapus session dan redirect ke halaman login
+                session_destroy();
+                header("Location: index.php");
+                exit();
+            } else {
+                header("Location: profile.php");
+            }
         } else {
             header("Location: profile.php");
         }
