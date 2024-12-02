@@ -14,7 +14,7 @@ $action = $_POST['action'];
 if ($action === 'save') {
     // Simpan data ke wishlist
     $query = "INSERT INTO wishlist (user_id, tourism_id) VALUES ($userId, $tourismId)";
-    if (mysqli_query($con, $query)) {
+    if (pg_query($con, $query)) {
         echo 'saved';
     } else {
         echo 'error';
@@ -22,7 +22,7 @@ if ($action === 'save') {
 } elseif ($action === 'unsave') {
     // Hapus data dari wishlist
     $query = "DELETE FROM wishlist WHERE user_id = $userId AND tourism_id = $tourismId";
-    if (mysqli_query($con, $query)) {
+    if (pg_query($con, $query)) {
         echo 'unsaved';
     } else {
         echo 'error';

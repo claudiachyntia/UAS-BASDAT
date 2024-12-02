@@ -5,50 +5,53 @@ $isLoggedIn = isset($_SESSION['user_id']);
 
 $city_id = isset($_GET['city_id']) ? intval($_GET['city_id']) : 0;
 $category_id = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
-$image_url = isset($_GET['image_url']) ? $_GET['image_url'] : 0;
-
+$image_url = isset($_GET['image_url']) ? $_GET['image_url'] : '';
 
 // Query untuk mengambil informasi kota dari tabel cities
 $city_query = "
     SELECT city_name, description
     FROM cities
-    WHERE city_id = ?
+    WHERE city_id = $1
 ";
-$stmt = $con->prepare($city_query);
-$stmt->bind_param("i", $city_id);
-$stmt->execute();
-$stmt->bind_result($city_name, $city_description);
-$stmt->fetch();
-$stmt->close();
+$result = pg_query_params($con, $city_query, array($city_id));
+if ($result && pg_num_rows($result) > 0) {
+    $city = pg_fetch_assoc($result);
+    $city_name = htmlspecialchars($city['city_name']);
+    $city_description = htmlspecialchars($city['description']);
+} else {
+    $city_name = '';
+    $city_description = '';
+}
 
 // Query untuk mengambil category_name dari tabel tourismcategories
 $category_query = "
     SELECT category_name
     FROM tourismcategories
-    WHERE category_id = ?
+    WHERE category_id = $1
 ";
-$stmt = $con->prepare($category_query);
-$stmt->bind_param("i", $category_id);
-$stmt->execute();
-$stmt->bind_result($category_name);
-$stmt->fetch();
-$stmt->close();
+$result = pg_query_params($con, $category_query, array($category_id));
+if ($result && pg_num_rows($result) > 0) {
+    $category = pg_fetch_assoc($result);
+    $category_name = htmlspecialchars($category['category_name']);
+} else {
+    $category_name = '';
+}
 
 // Query untuk mengambil tourismplaces yang sesuai dengan category_id dan city_id
 $tour_query = "
     SELECT tp.tourism_id, tp.tourism_name, tp.image_url, COALESCE(AVG(r.rating_value), 0) AS average_rating
     FROM tourismplaces tp
     LEFT JOIN ratings r ON tp.tourism_id = r.tourism_id
-    WHERE tp.city_id = ? AND tp.category_id = ?
+    WHERE tp.city_id = $1 AND tp.category_id = $2
     GROUP BY tp.tourism_id, tp.tourism_name, tp.image_url
 ";
-$stmt = $con->prepare($tour_query);
-$stmt->bind_param("ii", $city_id, $category_id);
-$stmt->execute();
-$stmt->bind_result($tourism_id, $tourism_name, $tour_image_url, $average_rating);
-
+$result = pg_query_params($con, $tour_query, array($city_id, $category_id));
+if ($result) {
+    $tour_places = pg_fetch_all($result);
+} else {
+    $tour_places = [];
+}
 ?>
-
 
 <!doctype html>
 <html lang="en">
@@ -70,7 +73,6 @@ $stmt->bind_result($tourism_id, $tourism_name, $tour_image_url, $average_rating)
         integrity="sha512-xh6O/CkQoPOWDdYTDqeRdPCVd1SpvCA9XXcUnZS2FmJNp1coAFzvtCN9BmamE+4aHK8yyUHUSCcJHgXloTyT2A=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-
     <title>WikiTrip</title>
 </head>
 
@@ -85,7 +87,7 @@ $stmt->bind_result($tourism_id, $tourism_name, $tour_image_url, $average_rating)
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
+            <div class="collapse navbar-collapse justify-content-center" id=" navbarNav">
                 <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
                     <li class="nav-item">
                         <a class="nav-link active text-white" aria-current="page" href="index.php">Home</a>
@@ -121,7 +123,7 @@ $stmt->bind_result($tourism_id, $tourism_name, $tour_image_url, $average_rating)
                                 <li class="sub-item">
                                     <a href="profile.php" class="profile-link" style="text-decoration: none; display: flex; align-items: center;">
                                         <i class="bi bi-person-circle material-icons-outlined"></i>
-                                        <p style="margin-left: 8px" >Profile</p>
+                                        <p style="margin-left: 8px">Profile</p>
                                     </a>
                                 </li>
                                 <li class="sub-item">
@@ -152,38 +154,40 @@ $stmt->bind_result($tourism_id, $tourism_name, $tour_image_url, $average_rating)
     </nav>
 
     <div class="main_background"> 
-        <img src="<?php echo $image_url; ?>" alt="<?php echo $city_name; ?>" class="mainback_img">
-        <div class="home__container container" style="align-items: center" ;>
+        <img src="<?php echo htmlspecialchars($image_url); ?>" alt="<?php echo htmlspecialchars($city_name); ?>" class="mainback_img">
+        <div class="home__container container" style="align-items: center;">
             <div class="home__data">
                 <h1 class="home__data-title" style="font-size: 4rem; text-decoration:overline underline;">
-                    <?php echo $city_name; ?>
+                    <?php echo htmlspecialchars($city_name); ?>
                 </h1>
             </div>
         </div>
     </div>
 
     <div class="main-content">
-        <h2 class="content-title"><?php echo $city_name; ?></h2>
-        <p class="content-description"><?php echo $city_description; ?></p>
+        <h2 class="content-title"><?php echo htmlspecialchars($city_name); ?></h2>
+        <p class="content-description"><?php echo htmlspecialchars($city_description); ?></p>
         <hr class="content-divider">
 
-        <h3 class="explore-title" id="explore">Explore The <?php echo $category_name; ?> Of <?php echo $city_name; ?></h3>
+        <h3 class="explore-title" id="explore">Explore The <?php echo htmlspecialchars($category_name); ?> Of <?php echo htmlspecialchars($city_name); ?></h3>
         <div class="culinary-card">
-            <?php while ($stmt->fetch()): ?>
-                <a href="tourism_place.php?tourism_id=<?php echo $tourism_id; ?>" class="restaurant" style="text-decoration: none;">
-                    <img src="<?php echo $tour_image_url; ?>" class="restaurant-img">
-                    <h3 class="card-title" style="margin-top: 15px; font-size: 1.15rem; padding-left: 15px;">
-                        <?php echo $tourism_name; ?>
-                    </h3>
-                    <p class="card-rating" style="margin-top: 0%; padding-left: 15px;">
-                        <?php
-                        $roundedRating = floor($average_rating);
-                        $stars = str_repeat('★', $roundedRating) . str_repeat('☆', 5 - $roundedRating);
-                        echo "$stars ($roundedRating/5)";
-                        ?>
-                    </p>
-                </a>
-            <?php endwhile; ?>
+            <?php if (!empty($tour_places)): ?>
+                <?php foreach ($tour_places as $place): ?>
+                    <a href="tourism_place.php?tourism_id=<?php echo $place['tourism_id']; ?>" class="restaurant" style="text-decoration: none;">
+                        <img src="<?php echo htmlspecialchars ($place['image_url']); ?>" class="restaurant-img">
+                        <h3 class="card-title" style="margin-top: 15px; font-size: 1.15rem; padding-left: 15px;">
+                            <?php echo htmlspecialchars($place['tourism_name']); ?>
+                        </h3>
+                        <p class="card-rating" style="margin-top: 0%; padding-left: 15px;">
+                            <?php
+                            $roundedRating = floor($place['average_rating']);
+                            $stars = str_repeat('★', $roundedRating) . str_repeat('☆', 5 - $roundedRating);
+                            echo "$stars ($roundedRating/5)";
+                            ?>
+                        </p>
+                    </a>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -198,4 +202,4 @@ $stmt->bind_result($tourism_id, $tourism_name, $tour_image_url, $average_rating)
 
 </body>
 
-</html> 
+</html>
