@@ -1,19 +1,23 @@
 <?php
 session_start();
-include('config/conn.php');
-$tourism_id = isset($_GET['tourism_id']) ? (int)$_GET['tourism_id'] : 0;
-$query = "SELECT tourism_name, image_url, map_url, description FROM tourismplaces WHERE tourism_id = $tourism_id";
-$result = $con->query($query);
+include('config/conn.php'); // Pastikan koneksi sudah disesuaikan untuk PostgreSQL
 
-if ($result->num_rows > 0) {
-    $row = $result->fetch_assoc();
+// Mendapatkan ID tempat wisata dari URL
+$tourism_id = isset($_GET['tourism_id']) ? (int)$_GET['tourism_id'] : 0;
+
+// Query untuk mengambil data tempat wisata
+$query = "SELECT tourism_name, image_url, map_url, description FROM tourismplaces WHERE tourism_id = $tourism_id";
+$result = pg_query($con, $query);
+
+if (pg_num_rows($result) > 0) {
+    $row = pg_fetch_assoc($result);
     $tourism_name = $row['tourism_name'];
     $image_url = $row['image_url'];
     $map_url = $row['map_url'];
     $description = $row['description'];
 } else {
     echo "Data tidak ditemukan.";
-    exit; 
+    exit;
 }
 
 // Cek apakah user sudah menyimpan tempat ini dalam database
@@ -24,43 +28,43 @@ if (isset($_SESSION['user_id'])) {
     
     // Query untuk memeriksa apakah data sudah ada di wishlist
     $wishlist = "SELECT * FROM wishlist WHERE user_id = $userId AND tourism_id = $tourismId";
-    $hasilwishlist = mysqli_query($con, $wishlist);
-    if (mysqli_num_rows($hasilwishlist) > 0) {
+    $hasilwishlist = pg_query($con, $wishlist);
+    if (pg_num_rows($hasilwishlist) > 0) {
         $isBookmarked = true;
     }
+
+    // Query untuk mendapatkan rating pengguna
     $sql = "SELECT rating_value FROM ratings WHERE user_id = $userId AND tourism_id = $tourismId";
-    $result = mysqli_query($con, $sql);
+    $result = pg_query($con, $sql);
     if ($result) {
-        $row = mysqli_fetch_assoc($result);
+        $row = pg_fetch_assoc($result);
         $existing_rating = $row['rating_value'] ?? null;
-    } 
-    
-} else{
-    $existing_rating=null;
+    }
+} else {
+    $existing_rating = null;
 }
 
-
-$query = "SELECT rating_value FROM ratings WHERE tourism_id = ?";
-$stmt = $con->prepare($query);
-$stmt->bind_param("i", $tourism_id);
-$stmt->execute();
-$result = $stmt->get_result();
+// Query untuk menghitung rata-rata rating
+$query = "SELECT rating_value FROM ratings WHERE tourism_id = $tourism_id";
+$stmt = pg_query($con, $query);
 $totalRating = 0;
 $count = 0;
-while ($row = $result->fetch_assoc()) {
+while ($row = pg_fetch_assoc($stmt)) {
     $totalRating += $row['rating_value'];
     $count++;
 }
+
 // Hitung rata-rata rating
 $averageRating = $count > 0 ? round($totalRating / $count, 1) : 0;
 
 // Kirim ke JavaScript
 echo "<script>var averageRating = $averageRating;</script>";
 
+// Query untuk mendapatkan lokasi dan cuaca
 $query = "SELECT tourism_id, tourism_name, map_url FROM tourismplaces WHERE tourism_id = $tourism_id";
-$result = mysqli_query($con, $query);
+$result = pg_query($con, $query);
 
-if ($row = mysqli_fetch_assoc($result)) {
+if ($row = pg_fetch_assoc($result)) {
     $iframe = $row['map_url'];
     preg_match('/!2d(-?\d+(\.\d+)?)!3d(-?\d+(\.\d+)?)/', $iframe, $matches);
     $longitude = $matches[1];
@@ -73,6 +77,7 @@ if ($row = mysqli_fetch_assoc($result)) {
     $error = "Data tidak ditemukan untuk ID = $tourism_id.";
 }
 ?>
+
 
 <!doctype html>
 <html lang="en">
