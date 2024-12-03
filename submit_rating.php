@@ -43,7 +43,7 @@ while ($row = pg_fetch_assoc($result)) {
 }
 
 // Hitung rata-rata rating
-$averageRating = $count > 0 ? round($totalRating / $count, 1) : 0;
+$newAverageRating = calculateNewAverageRating($tourism_id); 
 
-echo $averageRating;
+echo $newAverageRating;
 ?>
