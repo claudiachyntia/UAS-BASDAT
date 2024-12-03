@@ -1,3 +1,16 @@
+// Definisikan fungsi updateRatingDisplay lebih awal
+const updateRatingDisplay = (rating) => {
+    let starsHTML = '';
+    for (let i = 1; i <= 5; i++) {
+        if (i <= rating) {
+            starsHTML += '★';  
+        } else {
+            starsHTML += '☆';  
+        }
+    }
+    dynamicRating.innerHTML = `${starsHTML} (${rating}/5)`; 
+};
+
 let starContainer = document.querySelectorAll(".star-container"); //rating
 const submitButton = document.querySelector("#submit");
 const message = document.querySelector("#message");
@@ -35,8 +48,7 @@ starContainer.forEach((element, index) => {
         ratingUpdate(0, starContainer.length - 1, false);
         ratingUpdate(0, index, true);
         selectedRating = index + 1;
-        updateRatingDisplay(averageRating);
-    });
+        updateRatingDisplay(selectedRating);    });
 });
 
 const ratingUpdate = (start, end, active) => {
@@ -76,7 +88,6 @@ const ratingUpdate = (start, end, active) => {
     }
 };
 
-
 submitButton.addEventListener("click", () => {
     if (selectedRating > 0) {
         if (!isLoggedIn) {
@@ -84,6 +95,7 @@ submitButton.addEventListener("click", () => {
             window.location.href = 'login.php';
             return; // Stop further execution
         }
+
         // Ambil userId dan tourismId dari atribut tombol
         var userId = submitButton.getAttribute('data-user-id');
         var tourismId = submitButton.getAttribute('data-tourism-id');
@@ -93,54 +105,49 @@ submitButton.addEventListener("click", () => {
             console.error("User ID atau Tourism ID tidak valid.");
             return;
         }
-        const updateRatingDisplay = (rating) => {
-            let starsHTML = '';
-            for (let i = 1; i <= 5; i++) {
-                if (i <= rating) {
-                    starsHTML += '★';  
-                } else {
-                    starsHTML += '☆';  
-                }
-            }
-            dynamicRating.innerHTML = `${starsHTML} (${rating}/5)`; 
-        };
 
         // AJAX request ke submit_rating.php
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "../submit_rating.php", true);
+        xhr.open("POST", "submit_rating.php", true);
         xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
+                console.log(xhr.responseText);  // Debug response
                 const newAverageRating = parseFloat(xhr.responseText);
-                updateRatingDisplay(averageRating);
+                if (isNaN(newAverageRating)) {
+                    console.error("Invalid average rating:", xhr.responseText);
+                    message.innerText = "Something went wrong, please try again.";
+                    return;
+                }
+        
+                updateRatingDisplay(newAverageRating);
                 console.log("Rating saved:", xhr.responseText);
-                submitButton.style.display = 'none'; // Sembunyikan tombol submit
-                // Nonaktifkan semua bintang
+                
+                submitButton.style.display = 'none';
                 starContainer.forEach((element) => {
-                    element.style.pointerEvents = 'none'; // Nonaktifkan interaksi
+                    element.style.pointerEvents = 'none';
                 });
-                
-                // Tampilkan pesan sukses
+        
                 message.innerText = "Thank you for your feedback!";
-                
-                // Tampilkan rating yang telah dipilih
                 starContainer.forEach((element, index) => {
                     if (index < selectedRating) {
-                        element.firstElementChild.className = 'fa-star fa-solid'; // Bintang terisi
+                        element.firstElementChild.className = 'fa-star fa-solid';
                     } else {
-                        element.firstElementChild.className = 'fa-star fa-regular'; // Bintang kosong
+                        element.firstElementChild.className = 'fa-star fa-regular';
                     }
                 });
             }
         };
-        xhr.send(`rating=${selectedRating}&user_id=${userId}&tourism_id=${tourismId}`);
+        
+        
+        // Kirim data rating ke server
+        xhr.send(`rating=${encodeURIComponent(selectedRating)}&user_id=${encodeURIComponent(userId)}&tourism_id=${encodeURIComponent(tourismId)}`);
     } else {
         message.innerText = "Please select a rating before submitting.";
     }
 });
 
 window.onload = () => {
-    submitButton.disabled = true;
-    submitSection.classList.add("hide");
-    message.innerText = "Rate Your Experience";
+    submitButton.disabled = true; // Nonaktifkan tombol submit saat pertama kali halaman dimuat
+    message.innerText = "Rate Your Experience"; // Tampilkan pesan awal
 };
